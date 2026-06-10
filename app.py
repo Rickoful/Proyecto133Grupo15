@@ -1,17 +1,25 @@
-from flask import Flask, jsonify, render_template, request
+from datetime import datetime
+from pathlib import Path
+
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_mysqldb import MySQL
 from flask_jwt_extended import JWTManager,create_access_token,jwt_required
 
 app = Flask(__name__)
 mysql = MySQL(app)
+
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST = BASE_DIR / 'crud-frontend-v1' / 'dist'
+
+#Configuracion JWT
 app.config['JWT_SECRET_KEY']='123'
 jwt=JWTManager(app)
+
 
 app.config['MYSQL_HOST'] = "localhost"
 app.config['MYSQL_USER'] = "root"
 app.config['MYSQL_PASSWORD'] = ""
 app.config['MYSQL_DB'] = "proyectoprestamo"
-app.config['MYSQL_PORT'] = 3307
 
 
 @app.route('/testdb')
@@ -23,8 +31,31 @@ def test():
 
 #INICIO
 @app.route('/')
-def inicio(): 
-    return render_template('index.html');
+def inicio():
+    index_file = FRONTEND_DIST / 'index.html'
+    if index_file.exists():
+        return send_from_directory(FRONTEND_DIST, 'index.html')
+
+    return render_template('index.html')
+
+
+@app.route('/assets/<path:filename>')
+def frontend_assets(filename):
+    return send_from_directory(FRONTEND_DIST / 'assets', filename)
+
+
+#LOGIN DEL SISTEMA
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data['username']
+    password = data['password']
+    if username == "admin" and password == "123":
+        token = create_access_token(identity = username)
+        return jsonify(access_token=token)
+    return jsonify({"error":"credenciales incorrectas"}), 401
+
+
 
 # GET - Listar todos los usuarios
 @app.route('/usuarios', methods=['GET'])
