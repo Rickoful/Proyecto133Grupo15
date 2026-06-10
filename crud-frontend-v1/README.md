@@ -32,22 +32,6 @@ Desarrollo (modo hot-reload con Vite)
 1. Levanta el servidor de desarrollo de Vite:
 
 ```bash
-npm run dev
-```
-
-2. Verifica que el backend esté corriendo. El frontend actual consume el backend con rutas directas como `/login`, `/usuarios`, `/equipos` y `/prestamos`, así que el flujo más estable es abrirlo servido por Flask desde `http://127.0.0.1:5000/`.
-
-3. Abre: http://localhost:5173 (o la URL que indique Vite) y trabaja con hot-reload.
-
-Nota sobre Vite
-
-El `vite.config.js` incluye un proxy para `/api`, pero tu frontend actual no está usando ese prefijo. Si quieres trabajar solo con Vite en desarrollo, tendrás que ajustar el frontend o el proxy para que ambos usen el mismo esquema de rutas.
-
-Generar build de producción
-
-Para producir el bundle estático que Flask puede servir desde `dist`:
-
-```bash
 npm run build
 ```
 
@@ -61,11 +45,6 @@ Servir el frontend desde Flask (producción)
 python app.py
 ```
 
-2. Flask sirve por defecto los archivos en `crud-frontend-v1/dist` si existen; entra en `http://127.0.0.1:5000/`.
-
-Sin usar `dist` (modo recomendado en desarrollo)
-
-Si prefieres no usar `dist` en desarrollo, levanta Vite (`npm run dev`) y abre `http://localhost:5173`; en ese caso, asegúrate de que las rutas del frontend y el proxy apunten al mismo backend.
 
 Autenticación y API
 

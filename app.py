@@ -2,10 +2,13 @@ from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask_cors import CORS
 from flask_mysqldb import MySQL
 from flask_jwt_extended import JWTManager,create_access_token,jwt_required
 
 app = Flask(__name__)
+# Habilitar CORS para permitir peticiones desde el frontend (dev server o producción)
+CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"], supports_credentials=True)
 mysql = MySQL(app)
 
 BASE_DIR = Path(__file__).resolve().parent
