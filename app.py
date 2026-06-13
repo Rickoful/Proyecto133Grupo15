@@ -23,6 +23,7 @@ app.config['MYSQL_HOST'] = "localhost"
 app.config['MYSQL_USER'] = "root"
 app.config['MYSQL_PASSWORD'] = ""
 app.config['MYSQL_DB'] = "proyectoprestamo"
+app.config['MYSQL_PORT'] = 3307
 
 
 @app.route('/testdb')
@@ -47,22 +48,36 @@ def frontend_assets(filename):
     return send_from_directory(FRONTEND_DIST / 'assets', filename)
 
 
-#LOGIN DEL SISTEMA
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data['username']
-    password = data['password']
-    if username == "admin" and password == "123":
-        token = create_access_token(identity = username)
-        return jsonify(access_token=token)
-    return jsonify({"error":"credenciales incorrectas"}), 401
 
+    correo = data.get('username')
+    ci = data.get('password')
+
+    cursor = mysql.connection.cursor()
+
+    sql = """
+    SELECT id_usuario, nombre
+    FROM usuario
+    WHERE correo=%s AND ci=%s
+    """
+
+    cursor.execute(sql, (correo, ci))
+    usuario = cursor.fetchone()
+
+    cursor.close()
+
+    if usuario:
+        token = create_access_token(identity=str(usuario[0]))
+        return jsonify(access_token=token)
+
+    return jsonify({"error": "Credenciales incorrectas"}), 401
 
 
 # GET - Listar todos los usuarios
 @app.route('/usuarios', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def listar_usuarios():
     cursor = mysql.connection.cursor()
     sql = """SELECT id_usuario, nombre, apellido, ci, tipo_usuario, 
@@ -112,7 +127,7 @@ def obtener_usuario(id):
 
 # GET - Listar todos los equipos
 @app.route('/equipos', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def listar_equipos():
     cursor = mysql.connection.cursor()
     sql = """SELECT id_equipo, nombre, descripcion, marca, modelo, 
@@ -189,7 +204,7 @@ def obtener_equipo(id):
 
 # GET - Listar todos los préstamos
 @app.route('/prestamos', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def listar_prestamos():
     cursor = mysql.connection.cursor()
     sql = """SELECT p.id_prestamo, p.id_usuario, u.nombre, u.apellido,
@@ -456,7 +471,7 @@ def crear_prestamo():
     
     cursor = mysql.connection.cursor()
     
-    # Verificar que el usuario exista
+    
     cursor.execute("SELECT id_usuario FROM usuario WHERE id_usuario = %s", (id_usuario,))
     if not cursor.fetchone():
         cursor.close()
