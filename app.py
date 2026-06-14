@@ -27,9 +27,11 @@ jwt=JWTManager(app)
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / 'crud-frontend-v1' / 'dist'
 
+
 def get_db_connection():
     """Obtiene una conexión a la base de datos MySQL"""
     return MySQLdb.connect(**DB_CONFIG)
+
 
 
 @app.route('/testdb')
@@ -57,22 +59,36 @@ def frontend_assets(filename):
     return send_from_directory(FRONTEND_DIST / 'assets', filename)
 
 
-#LOGIN DEL SISTEMA
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data['username']
-    password = data['password']
-    if username == "admin" and password == "123":
-        token = create_access_token(identity = username)
-        return jsonify(access_token=token)
-    return jsonify({"error":"credenciales incorrectas"}), 401
 
+    correo = data.get('username')
+    ci = data.get('password')
+
+    cursor = mysql.connection.cursor()
+
+    sql = """
+    SELECT id_usuario, nombre
+    FROM usuario
+    WHERE correo=%s AND ci=%s
+    """
+
+    cursor.execute(sql, (correo, ci))
+    usuario = cursor.fetchone()
+
+    cursor.close()
+
+    if usuario:
+        token = create_access_token(identity=str(usuario[0]))
+        return jsonify(access_token=token)
+
+    return jsonify({"error": "Credenciales incorrectas"}), 401
 
 
 # GET - Listar todos los usuarios
 @app.route('/usuarios', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def listar_usuarios():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -125,7 +141,7 @@ def obtener_usuario(id):
 
 # GET - Listar todos los equipos
 @app.route('/equipos', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def listar_equipos():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -208,7 +224,7 @@ def obtener_equipo(id):
 
 # GET - Listar todos los préstamos
 @app.route('/prestamos', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def listar_prestamos():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -494,7 +510,7 @@ def crear_prestamo():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Verificar que el usuario exista
+    
     cursor.execute("SELECT id_usuario FROM usuario WHERE id_usuario = %s", (id_usuario,))
     if not cursor.fetchone():
         cursor.close()
