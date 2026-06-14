@@ -2,6 +2,8 @@ const tabs = [
     { key: 'usuarios', label: 'Usuarios' },
     { key: 'equipos', label: 'Equipos' },
     { key: 'prestamos', label: 'Prestamos' },
+    { key: 'historial', label: 'Historial' },
+    { key: 'reportes', label: 'Reportes' },
 ];
 
 export default function Navbar({ entity, entityLabel, onEntityChange, onOpen, search, onSearch, onLogout }) {
@@ -40,7 +42,9 @@ export default function Navbar({ entity, entityLabel, onEntityChange, onOpen, se
                         Cerrar sesión
                     </button>
                 )}
-                <button onClick={onOpen} className="btn btn-primary">Agregar</button>
+                {onOpen && (
+                    <button onClick={onOpen} className="btn btn-primary">Agregar</button>
+                )}
             </div>
             </div>
 

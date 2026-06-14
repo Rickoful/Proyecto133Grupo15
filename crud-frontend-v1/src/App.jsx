@@ -103,6 +103,44 @@ const ENTITY_CONFIG = {
   },
 };
 
+const REPORT_CONFIG = {
+  equipos_mas_prestados: {
+    label: 'Equipos más prestados',
+    endpoint: '/reportes/equipos_mas_prestados',
+    idKey: 'id_equipo',
+    columns: [
+      { key: 'id_equipo', label: 'ID Equipo' },
+      { key: 'nombre', label: 'Nombre' },
+      { key: 'marca', label: 'Marca' },
+      { key: 'modelo', label: 'Modelo' },
+      { key: 'veces_prestado', label: 'Veces Prestado' },
+    ],
+  },
+  prestamos_por_usuario: {
+    label: 'Préstamos por usuario',
+    endpoint: '/reportes/prestamos_por_usuario',
+    idKey: 'id_usuario',
+    columns: [
+      { key: 'id_usuario', label: 'ID Usuario' },
+      { key: 'nombre', label: 'Nombre' },
+      { key: 'apellido', label: 'Apellido' },
+      { key: 'total_prestamos', label: 'Total de préstamos' },
+    ],
+  },
+  disponibilidad: {
+    label: 'Disponibilidad total',
+    endpoint: '/equipos/disponibles',
+    idKey: 'id_equipo',
+    columns: [
+      { key: 'id_equipo', label: 'ID Equipo' },
+      { key: 'nombre', label: 'Nombre' },
+      { key: 'marca', label: 'Marca' },
+      { key: 'modelo', label: 'Modelo' },
+      { key: 'estado', label: 'Estado' },
+    ],
+  },
+};
+
 const defaultFormByEntity = {
   usuarios: {
     nombre: '',
@@ -126,6 +164,29 @@ const defaultFormByEntity = {
     fecha_devolucion_programada: '',
     estado: 'activo',
   },
+  historial: {
+    id_usuario: '',
+  },
+};
+
+const PAGE_CONFIG = {
+  historial: {
+    label: 'Historial',
+    idKey: 'id_prestamo',
+    columns: [
+      { key: 'id_prestamo', label: 'ID' },
+      { key: 'id_usuario', label: 'ID Usuario' },
+      {
+        key: 'usuario',
+        label: 'Usuario',
+        render: (row) => `${row.nombre_usuario || ''} ${row.apellido_usuario || ''}`.trim() || '-',
+      },
+      { key: 'fecha_prestamo', label: 'Fecha Prestamo', type: 'date' },
+      { key: 'fecha_devolucion_programada', label: 'Fecha Devolucion', type: 'date' },
+      { key: 'fecha_devolucion_real', label: 'Fecha Devolucion Real', type: 'date' },
+      { key: 'estado', label: 'Estado' },
+    ],
+  },
 };
 
 function App() {
@@ -136,19 +197,39 @@ function App() {
   const [modalMode, setModalMode] = useState('add');
   const [selectedItem, setSelectedItem] = useState(null);
   const [formData, setFormData] = useState(defaultFormByEntity.usuarios);
+  const [reportType, setReportType] = useState('equipos_mas_prestados');
+  const [historyUserId, setHistoryUserId] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const config = ENTITY_CONFIG[entity];
+  const isCrudEntity = ['usuarios', 'equipos', 'prestamos'].includes(entity);
+  const isReportEntity = entity === 'reportes';
+  const isHistoryEntity = entity === 'historial';
+  const reportConfig = isReportEntity ? REPORT_CONFIG[reportType] : null;
+  const config = isReportEntity
+    ? reportConfig
+    : ENTITY_CONFIG[entity] || PAGE_CONFIG[entity] || { label: entity === 'historial' ? 'Historial' : 'Reportes', columns: [], idKey: 'id' };
 
   useEffect(() => {
     if (!isAuthenticated) {
       return;
     }
 
-    loadRows();
-  }, [entity, isAuthenticated]);
+    if (isReportEntity) {
+      loadReport(reportType);
+      return;
+    }
+
+    if (isCrudEntity) {
+      loadRows();
+      return;
+    }
+
+    if (isHistoryEntity) {
+      setRows([]);
+    }
+  }, [entity, isAuthenticated, reportType]);
 
   const loadRows = async () => {
     setLoading(true);
@@ -164,6 +245,39 @@ function App() {
     }
   };
 
+  const loadReport = async (type) => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchItems(REPORT_CONFIG[type].endpoint);
+      setRows(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message || 'No se pudo cargar el reporte.');
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    if (!historyUserId) {
+      setError('Ingrese un ID de usuario para buscar el historial.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchItems(`/prestamos/usuario/${historyUserId}`);
+      setRows(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message || 'No se pudo cargar el historial.');
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) {
       return;
@@ -173,6 +287,9 @@ function App() {
     setIsOpen(false);
     setSelectedItem(null);
     setFormData(defaultFormByEntity[entity]);
+    if (isHistoryEntity) {
+      setHistoryUserId('');
+    }
   }, [entity, isAuthenticated]);
 
   const filteredRows = useMemo(() => {
@@ -293,7 +410,7 @@ function App() {
         entity={entity}
         entityLabel={config.label}
         onEntityChange={setEntity}
-        onOpen={openAddModal}
+        onOpen={isCrudEntity ? openAddModal : undefined}
         search={search}
         onSearch={setSearch}
         onLogout={handleLogout}
@@ -302,28 +419,64 @@ function App() {
       {error && <div className="alert alert-error mt-4 text-sm">{error}</div>}
       {loading && <div className="alert mt-4">Cargando {config.label.toLowerCase()}...</div>}
 
+      {isHistoryEntity && (
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="form-control w-full lg:w-80">
+            <label className="label">
+              <span className="label-text">ID de usuario</span>
+            </label>
+            <input
+              type="number"
+              value={historyUserId}
+              onChange={(e) => setHistoryUserId(e.target.value)}
+              className="input input-bordered w-full"
+              placeholder="Ej. 1"
+            />
+          </div>
+          <button className="btn btn-primary" onClick={loadHistory}>
+            Buscar historial
+          </button>
+        </div>
+      )}
+
+      {isReportEntity && (
+        <div className="mt-4 flex flex-wrap gap-3">
+          {Object.entries(REPORT_CONFIG).map(([key, report]) => (
+            <button
+              className={`btn ${reportType === key ? 'btn-primary' : 'btn-outline'} btn-sm`}
+              key={key}
+              onClick={() => setReportType(key)}
+            >
+              {report.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {!loading && (
         <TableList
           entity={entity}
           columns={config.columns}
           rows={filteredRows}
           idKey={config.idKey}
-          onEdit={openEditModal}
-          onDelete={handleDelete}
-          onReturnLoan={handleReturnLoan}
+          onEdit={isCrudEntity ? openEditModal : undefined}
+          onDelete={isCrudEntity ? handleDelete : undefined}
+          onReturnLoan={entity === 'prestamos' ? handleReturnLoan : undefined}
         />
       )}
 
-      <ModalForm
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        mode={modalMode}
-        entityLabel={config.label}
-        fields={config.formFields}
-        values={formData}
-        onChange={handleFormChange}
-        onSubmit={handleSubmit}
-      />
+      {isCrudEntity && (
+        <ModalForm
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          mode={modalMode}
+          entityLabel={config.label}
+          fields={config.formFields}
+          values={formData}
+          onChange={handleFormChange}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   )
 }

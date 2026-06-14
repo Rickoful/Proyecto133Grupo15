@@ -12,6 +12,8 @@ const formatDate = (value) => {
 };
 
 export default function TableList({ entity, columns, rows, idKey, onEdit, onDelete, onReturnLoan }) {
+    const showActions = Boolean(onEdit || onDelete || onReturnLoan);
+
     return (
         <div className="overflow-x-auto mt-10 rounded-box border border-slate-800/70 bg-slate-950/95 ">
                 <table className="table table-zebra text-slate-100">
@@ -22,14 +24,14 @@ export default function TableList({ entity, columns, rows, idKey, onEdit, onDele
                                 {column.label}
                             </th>
                         ))}
-                        <th className="text-right">Acciones</th>
+                        {showActions && <th className="text-right">Acciones</th>}
                     </tr>
                 </thead>
 
                 <tbody>
                     {rows.length === 0 && (
                         <tr>
-                            <td colSpan={columns.length + 1} className="text-center text-slate-300 py-8">
+                            <td colSpan={columns.length + (showActions ? 1 : 0)} className="text-center text-slate-300 py-8">
                                 No hay registros para mostrar.
                             </td>
                         </tr>
@@ -56,21 +58,28 @@ export default function TableList({ entity, columns, rows, idKey, onEdit, onDele
                                 );
                             })}
 
-                            <td>
-                                <div className="flex justify-end gap-2">
-                                    {entity === 'prestamos' && item.estado === 'activo' && (
-                                        <button className="btn btn-sm btn-info" onClick={() => onReturnLoan(item)}>
-                                            Devolver
-                                        </button>
-                                    )}
-                                    <button className="btn btn-sm btn-secondary" onClick={() => onEdit(item)}>
-                                        Editar
-                                    </button>
-                                    <button className="btn btn-sm btn-accent" onClick={() => onDelete(item)}>
-                                        Eliminar
-                                    </button>
-                                </div>
-                            </td>
+                            {showActions && (
+                                <td>
+                                    <div className="flex justify-end gap-2">
+                                        {entity === 'prestamos' && onReturnLoan && item.estado === 'activo' && (
+                                            <button className="btn btn-sm btn-info" onClick={() => onReturnLoan(item)}>
+                                                Devolver
+                                            </button>
+                                        )}
+
+                                        {onEdit && (
+                                            <button className="btn btn-sm btn-secondary" onClick={() => onEdit(item)}>
+                                                Editar
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button className="btn btn-sm btn-accent" onClick={() => onDelete(item)}>
+                                                Eliminar
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            )}
                         </tr>
                     ))}
                 </tbody>
