@@ -1,22 +1,20 @@
 from datetime import datetime
 from pathlib import Path
-
+from flask_mysqldb import MySQL
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
-import MySQLdb
 from flask_jwt_extended import JWTManager,create_access_token,jwt_required
 
 app = Flask(__name__)
 
 # Configuración de MySQL
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'passwd': '',
-    'db': 'proyectoprestamo',
-    'port': 3306
-}
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = ''          
+app.config['MYSQL_DB'] = 'proyectoprestamo'
+app.config['MYSQL_PORT'] = 3307      
 
+mysql = MySQL(app) 
 # Habilitar CORS para permitir peticiones desde el frontend (dev server o producción)
 CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"], supports_credentials=True)
 
@@ -26,23 +24,6 @@ jwt=JWTManager(app)
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / 'crud-frontend-v1' / 'dist'
-
-
-def get_db_connection():
-    """Obtiene una conexión a la base de datos MySQL"""
-    return MySQLdb.connect(**DB_CONFIG)
-
-
-
-@app.route('/testdb')
-def test():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = "SELECT 1"
-    cursor.execute(sql)
-    cursor.close()
-    conn.close()
-    return "conexion existosa!!!"
 
 #INICIO
 @app.route('/')
@@ -65,24 +46,18 @@ def login():
 
     correo = data.get('username')
     ci = data.get('password')
-
     cursor = mysql.connection.cursor()
-
     sql = """
     SELECT id_usuario, nombre
     FROM usuario
     WHERE correo=%s AND ci=%s
     """
-
     cursor.execute(sql, (correo, ci))
     usuario = cursor.fetchone()
-
     cursor.close()
-
     if usuario:
         token = create_access_token(identity=str(usuario[0]))
         return jsonify(access_token=token)
-
     return jsonify({"error": "Credenciales incorrectas"}), 401
 
 
@@ -90,14 +65,12 @@ def login():
 @app.route('/usuarios', methods=['GET'])
 @jwt_required()
 def listar_usuarios():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT id_usuario, nombre, apellido, ci, tipo_usuario, 
              telefono, correo FROM usuario ORDER BY id_usuario"""
     cursor.execute(sql)
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     usuarios = []
     for fila in datos:
@@ -117,14 +90,12 @@ def listar_usuarios():
 @app.route('/usuarios/<int:id>', methods=['GET'])
 #@jwt_required()
 def obtener_usuario(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT id_usuario, nombre, apellido, ci, tipo_usuario, 
              telefono, correo FROM usuario WHERE id_usuario = %s"""
     cursor.execute(sql, (id,))
     datos = cursor.fetchone()
     cursor.close()
-    conn.close()
     
     if not datos:
         return jsonify({"mensaje": "Usuario no encontrado"}), 404
@@ -143,14 +114,12 @@ def obtener_usuario(id):
 @app.route('/equipos', methods=['GET'])
 @jwt_required()
 def listar_equipos():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT id_equipo, nombre, descripcion, marca, modelo, 
              codigo_inventario, estado FROM equipo ORDER BY id_equipo"""
     cursor.execute(sql)
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     equipos = []
     for fila in datos:
@@ -170,8 +139,7 @@ def listar_equipos():
 @app.route('/equipos/disponibles', methods=['GET'])
 #@jwt_required()
 def equipos_disponibles():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT id_equipo, nombre, descripcion, marca, modelo, 
              codigo_inventario, estado 
              FROM equipo 
@@ -180,7 +148,6 @@ def equipos_disponibles():
     cursor.execute(sql)
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     equipos = []
     for fila in datos:
@@ -200,14 +167,12 @@ def equipos_disponibles():
 @app.route('/equipos/<int:id>', methods=['GET'])
 #@jwt_required()
 def obtener_equipo(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT id_equipo, nombre, descripcion, marca, modelo, 
              codigo_inventario, estado FROM equipo WHERE id_equipo = %s"""
     cursor.execute(sql, (id,))
     datos = cursor.fetchone()
     cursor.close()
-    conn.close()
     
     if not datos:
         return jsonify({"mensaje": "Equipo no encontrado"}), 404
@@ -226,8 +191,7 @@ def obtener_equipo(id):
 @app.route('/prestamos', methods=['GET'])
 @jwt_required()
 def listar_prestamos():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT p.id_prestamo, p.id_usuario, u.nombre, u.apellido,
              p.fecha_prestamo, p.fecha_devolucion_programada, 
              p.fecha_devolucion_real, p.estado
@@ -237,7 +201,6 @@ def listar_prestamos():
     cursor.execute(sql)
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     prestamos = []
     for fila in datos:
@@ -258,8 +221,7 @@ def listar_prestamos():
 @app.route('/prestamos/activos', methods=['GET'])
 #@jwt_required()
 def prestamos_activos():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT p.id_prestamo, p.id_usuario, u.nombre, u.apellido,
              p.fecha_prestamo, p.fecha_devolucion_programada, 
              p.fecha_devolucion_real, p.estado
@@ -270,7 +232,6 @@ def prestamos_activos():
     cursor.execute(sql)
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     prestamos = []
     for fila in datos:
@@ -292,8 +253,8 @@ def prestamos_activos():
 @app.route('/prestamos/usuario/<int:id_usuario>', methods=['GET'])
 #@jwt_required()
 def historial_prestamos_usuario(id_usuario):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
+
     sql = """SELECT p.id_prestamo, p.id_usuario, u.nombre, u.apellido,
              p.fecha_prestamo, p.fecha_devolucion_programada, 
              p.fecha_devolucion_real, p.estado
@@ -304,7 +265,6 @@ def historial_prestamos_usuario(id_usuario):
     cursor.execute(sql, (id_usuario,))
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     prestamos = []
     for fila in datos:
@@ -325,8 +285,7 @@ def historial_prestamos_usuario(id_usuario):
 @app.route('/prestamos/<int:id>', methods=['GET'])
 #@jwt_required()
 def obtener_prestamo(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT p.id_prestamo, p.id_usuario, u.nombre, u.apellido,
              p.fecha_prestamo, p.fecha_devolucion_programada, 
              p.fecha_devolucion_real, p.estado
@@ -336,7 +295,6 @@ def obtener_prestamo(id):
     cursor.execute(sql, (id,))
     datos = cursor.fetchone()
     cursor.close()
-    conn.close()
     
     if not datos:
         return jsonify({"mensaje": "Préstamo no encontrado"}), 404
@@ -356,8 +314,7 @@ def obtener_prestamo(id):
 @app.route('/prestamos/<int:id_prestamo>/detalles', methods=['GET'])
 #@jwt_required()
 def obtener_detalle_prestamo(id_prestamo):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT dp.id_detalle, dp.id_prestamo, dp.id_equipo, 
              e.nombre as nombre_equipo, e.marca, e.modelo
              FROM detalleprestamo dp
@@ -366,7 +323,6 @@ def obtener_detalle_prestamo(id_prestamo):
     cursor.execute(sql, (id_prestamo,))
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     detalles = []
     for fila in datos:
@@ -385,8 +341,7 @@ def obtener_detalle_prestamo(id_prestamo):
 @app.route('/reportes/prestamos_por_usuario', methods=['GET'])
 #@jwt_required()
 def reportes_prestamos_por_usuario():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT u.id_usuario, u.nombre, u.apellido, 
              COUNT(p.id_prestamo) as total_prestamos
              FROM usuario u
@@ -396,7 +351,6 @@ def reportes_prestamos_por_usuario():
     cursor.execute(sql)
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     resultado = []
     for fila in datos:
@@ -413,8 +367,7 @@ def reportes_prestamos_por_usuario():
 @app.route('/reportes/equipos_mas_prestados', methods=['GET'])
 #@jwt_required()
 def reportes_equipos_mas_prestados():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """SELECT e.id_equipo, e.nombre, e.marca, e.modelo,
              COUNT(dp.id_detalle) as veces_prestado
              FROM equipo e
@@ -424,7 +377,6 @@ def reportes_equipos_mas_prestados():
     cursor.execute(sql)
     datos = cursor.fetchall()
     cursor.close()
-    conn.close()
     
     resultado = []
     for fila in datos:
@@ -444,7 +396,7 @@ def reportes_equipos_mas_prestados():
 
 # POST - Crear usuario
 @app.route('/usuarios', methods=['POST'])
-#@jwt_required()
+@jwt_required()
 def crear_usuario():
     data = request.get_json()
     nombre = data.get('nombre')
@@ -454,15 +406,13 @@ def crear_usuario():
     telefono = data.get('telefono')
     correo = data.get('correo')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """INSERT INTO usuario (nombre, apellido, ci, tipo_usuario, telefono, correo)
              VALUES (%s, %s, %s, %s, %s, %s)"""
     cursor.execute(sql, (nombre, apellido, ci, tipo_usuario, telefono, correo))
-    conn.commit()
+    mysql.connection.commit()
     nuevo_id = cursor.lastrowid
     cursor.close()
-    conn.close()
     
     return jsonify({
         "mensaje": "Usuario creado exitosamente",
@@ -471,7 +421,7 @@ def crear_usuario():
 
 # POST - Crear equipo
 @app.route('/equipos', methods=['POST'])
-#@jwt_required()
+@jwt_required()
 def crear_equipo():
     data = request.get_json()
     nombre = data.get('nombre')
@@ -481,16 +431,14 @@ def crear_equipo():
     codigo_inventario = data.get('codigo_inventario')
     estado = data.get('estado', 'disponible')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """INSERT INTO equipo (nombre, descripcion, marca, modelo, 
              codigo_inventario, estado)
              VALUES (%s, %s, %s, %s, %s, %s)"""
     cursor.execute(sql, (nombre, descripcion, marca, modelo, codigo_inventario, estado))
-    conn.commit()
+    mysql.connection.commit()
     nuevo_id = cursor.lastrowid
     cursor.close()
-    conn.close()
     
     return jsonify({
         "mensaje": "Equipo creado exitosamente",
@@ -499,7 +447,7 @@ def crear_equipo():
 
 # POST - Crear préstamo (solicitud)
 @app.route('/prestamos', methods=['POST'])
-#@jwt_required()
+@jwt_required()
 def crear_prestamo():
     data = request.get_json()
     id_usuario = data.get('id_usuario')
@@ -507,24 +455,19 @@ def crear_prestamo():
     fecha_devolucion_programada = data.get('fecha_devolucion_programada')
     estado = data.get('estado', 'activo')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    
+    cursor = mysql.connection.cursor()
     cursor.execute("SELECT id_usuario FROM usuario WHERE id_usuario = %s", (id_usuario,))
     if not cursor.fetchone():
         cursor.close()
-        conn.close()
         return jsonify({"mensaje": "Usuario no encontrado"}), 404
     
     sql = """INSERT INTO prestamo (id_usuario, fecha_prestamo, 
              fecha_devolucion_programada, estado)
              VALUES (%s, %s, %s, %s)"""
     cursor.execute(sql, (id_usuario, fecha_prestamo, fecha_devolucion_programada, estado))
-    conn.commit()
+    mysql.connection.commit()
     nuevo_id = cursor.lastrowid
     cursor.close()
-    conn.close()
     
     return jsonify({
         "mensaje": "Préstamo creado exitosamente",
@@ -533,48 +476,39 @@ def crear_prestamo():
 
 # POST - Agregar equipo a préstamo
 @app.route('/prestamos/<int:id_prestamo>/detalles', methods=['POST'])
-#@jwt_required()
+@jwt_required()
 def agregar_equipo_a_prestamo(id_prestamo):
     data = request.get_json()
     id_equipo = data.get('id_equipo')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     
-    # Verificar que el préstamo exista
     cursor.execute("SELECT id_prestamo FROM prestamo WHERE id_prestamo = %s", (id_prestamo,))
     if not cursor.fetchone():
         cursor.close()
-        conn.close()
         return jsonify({"mensaje": "Préstamo no encontrado"}), 404
     
-    # Verificar que el equipo exista
     cursor.execute("SELECT id_equipo, estado FROM equipo WHERE id_equipo = %s", (id_equipo,))
     equipo = cursor.fetchone()
     if not equipo:
         cursor.close()
-        conn.close()
         return jsonify({"mensaje": "Equipo no encontrado"}), 404
 
-    # Validar que el equipo esté disponible antes de prestarlo
     if equipo[1] != 'disponible':
         cursor.close()
-        conn.close()
         return jsonify({"mensaje": "El equipo no está disponible para préstamo"}), 400
     
-    # Insertar el detalle
     sql = """INSERT INTO detalleprestamo (id_prestamo, id_equipo)
              VALUES (%s, %s)"""
     cursor.execute(sql, (id_prestamo, id_equipo))
-    conn.commit()
+    mysql.connection.commit()
     nuevo_id = cursor.lastrowid
-    
-    # Actualizar estado del equipo a 'prestado'
+
     cursor.execute("""UPDATE equipo SET estado = 'prestado' 
                       WHERE id_equipo = %s""", (id_equipo,))
-    conn.commit()
+    mysql.connection.commit()
     cursor.close()
-    conn.close()
+    mysql.connection.commit()
     
     return jsonify({
         "mensaje": "Equipo agregado al préstamo exitosamente",
@@ -584,7 +518,7 @@ def agregar_equipo_a_prestamo(id_prestamo):
 #-----------------------------------PUTS-------------------------------------
 
 @app.route('/usuarios/<int:id>', methods=['PUT'])
-#@jwt_required()
+@jwt_required()
 def actualizar_usuario(id):
     data = request.get_json()
     nombre = data.get('nombre')
@@ -594,17 +528,15 @@ def actualizar_usuario(id):
     telefono = data.get('telefono')
     correo = data.get('correo')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """UPDATE usuario 
              SET nombre=%s, apellido=%s, ci=%s, tipo_usuario=%s, 
                  telefono=%s, correo=%s
              WHERE id_usuario = %s"""
     cursor.execute(sql, (nombre, apellido, ci, tipo_usuario, telefono, correo, id))
-    conn.commit()
+    mysql.connection.commit()
     affected = cursor.rowcount
     cursor.close()
-    conn.close()
     
     if affected == 0:
         return jsonify({"mensaje": "Usuario no encontrado"}), 404
@@ -613,7 +545,7 @@ def actualizar_usuario(id):
 
 # PUT - Actualizar equipo
 @app.route('/equipos/<int:id>', methods=['PUT'])
-#@jwt_required()
+@jwt_required()
 def actualizar_equipo(id):
     data = request.get_json()
     nombre = data.get('nombre')
@@ -623,17 +555,15 @@ def actualizar_equipo(id):
     codigo_inventario = data.get('codigo_inventario')
     estado = data.get('estado')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """UPDATE equipo 
              SET nombre=%s, descripcion=%s, marca=%s, modelo=%s, 
                  codigo_inventario=%s, estado=%s
              WHERE id_equipo = %s"""
     cursor.execute(sql, (nombre, descripcion, marca, modelo, codigo_inventario, estado, id))
-    conn.commit()
+    mysql.connection.commit()
     affected = cursor.rowcount
     cursor.close()
-    conn.close()
     
     if affected == 0:
         return jsonify({"mensaje": "Equipo no encontrado"}), 404
@@ -642,43 +572,37 @@ def actualizar_equipo(id):
 
 # PUT - Registrar devolución
 @app.route('/prestamos/<int:id>/devolver', methods=['PUT'])
-#@jwt_required()
+@jwt_required()
 def registrar_devolucion(id):
     data = request.get_json()
     fecha_devolucion_real = data.get('fecha_devolucion_real', datetime.now().strftime('%Y-%m-%d'))
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     
-    # Verificar que el préstamo exista y esté activo
     cursor.execute("""SELECT id_prestamo, estado FROM prestamo 
                       WHERE id_prestamo = %s""", (id,))
     prestamo = cursor.fetchone()
     
     if not prestamo:
         cursor.close()
-        conn.close()
         return jsonify({"mensaje": "Préstamo no encontrado"}), 404
     
     if prestamo[1] != 'activo':
         cursor.close()
-        conn.close()
         return jsonify({"mensaje": "El préstamo ya fue devuelto"}), 400
     
-    # Actualizar el préstamo
     sql = """UPDATE prestamo 
              SET fecha_devolucion_real = %s, estado = 'devuelto'
              WHERE id_prestamo = %s"""
     cursor.execute(sql, (fecha_devolucion_real, id))
-    conn.commit()
+    mysql.connection.commit()
     cursor.close()
-    conn.close()
     
     return jsonify({"mensaje": "Devolución registrada exitosamente"}), 200
 
 # PUT - Actualizar préstamo
 @app.route('/prestamos/<int:id>', methods=['PUT'])
-#@jwt_required()
+@jwt_required()
 def actualizar_prestamo(id):
     data = request.get_json()
     id_usuario = data.get('id_usuario')
@@ -686,17 +610,15 @@ def actualizar_prestamo(id):
     fecha_devolucion_programada = data.get('fecha_devolucion_programada')
     estado = data.get('estado')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = """UPDATE prestamo 
              SET id_usuario=%s, fecha_prestamo=%s, 
                  fecha_devolucion_programada=%s, estado=%s
              WHERE id_prestamo = %s"""
     cursor.execute(sql, (id_usuario, fecha_prestamo, fecha_devolucion_programada, estado, id))
-    conn.commit()
+    mysql.connection.commit()
     affected = cursor.rowcount
     cursor.close()
-    conn.close()
     
     if affected == 0:
         return jsonify({"mensaje": "Préstamo no encontrado"}), 404
@@ -707,16 +629,14 @@ def actualizar_prestamo(id):
 
 # DELETE - Eliminar usuario
 @app.route('/usuarios/<int:id>', methods=['DELETE'])
-#@jwt_required()
+@jwt_required()
 def eliminar_usuario(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = "DELETE FROM usuario WHERE id_usuario = %s"
     cursor.execute(sql, (id,))
-    conn.commit()
+    mysql.connection.commmit()
     affected = cursor.rowcount
     cursor.close()
-    conn.close()
     
     if affected == 0:
         return jsonify({"mensaje": "Usuario no encontrado"}), 404
@@ -725,16 +645,14 @@ def eliminar_usuario(id):
 
 # DELETE - Eliminar equipo
 @app.route('/equipos/<int:id>', methods=['DELETE'])
-#@jwt_required()
+@jwt_required()
 def eliminar_equipo(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     sql = "DELETE FROM equipo WHERE id_equipo = %s"
     cursor.execute(sql, (id,))
-    conn.commit()
+    mysql.connection.commit()
     affected = cursor.rowcount
     cursor.close()
-    conn.close()
     
     if affected == 0:
         return jsonify({"mensaje": "Equipo no encontrado"}), 404
@@ -743,21 +661,16 @@ def eliminar_equipo(id):
 
 # DELETE - Eliminar préstamo
 @app.route('/prestamos/<int:id>', methods=['DELETE'])
-#@jwt_required()
+@jwt_required()
 def eliminar_prestamo(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Primero eliminar los detalles
+    cursor = mysql.connection.cursor()
     cursor.execute("DELETE FROM detalleprestamo WHERE id_prestamo = %s", (id,))
     
-    # Luego eliminar el préstamo
     sql = "DELETE FROM prestamo WHERE id_prestamo = %s"
     cursor.execute(sql, (id,))
-    conn.commit()
+    mysql.connection.commit()
     affected = cursor.rowcount
     cursor.close()
-    conn.close()
     
     if affected == 0:
         return jsonify({"mensaje": "Préstamo no encontrado"}), 404
@@ -766,41 +679,34 @@ def eliminar_prestamo(id):
 
 # DELETE - Eliminar equipo de préstamo
 @app.route('/prestamos/detalles/<int:id_detalle>', methods=['DELETE'])
-#@jwt_required()
+@jwt_required()
 def eliminar_detalle_prestamo(id_detalle):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = mysql.connection.cursor()
     
-    # Obtener el id_equipo antes de eliminar
     cursor.execute("SELECT id_equipo FROM detalleprestamo WHERE id_detalle = %s", (id_detalle,))
     resultado = cursor.fetchone()
     
     if not resultado:
         cursor.close()
-        conn.close()
         return jsonify({"mensaje": "Detalle no encontrado"}), 404
     
     id_equipo = resultado[0]
     
-    # Eliminar el detalle
     sql = "DELETE FROM detalleprestamo WHERE id_detalle = %s"
     cursor.execute(sql, (id_detalle,))
-    conn.commit()
+    mysql.connection.commit()
     
-    # Verificar si el equipo está en otros préstamos activos
     cursor.execute("""SELECT COUNT(*) FROM detalleprestamo dp
                       JOIN prestamo p ON dp.id_prestamo = p.id_prestamo
                       WHERE dp.id_equipo = %s AND p.estado = 'activo'""", (id_equipo,))
     count = cursor.fetchone()[0]
     
-    # Si no está en otros préstamos activos, marcar como disponible
     if count == 0:
         cursor.execute("""UPDATE equipo SET estado = 'disponible' 
                           WHERE id_equipo = %s""", (id_equipo,))
-        conn.commit()
+        mysql.connection.commit()
     
     cursor.close()
-    conn.close()
     
     return jsonify({"mensaje": "Equipo removido del préstamo exitosamente"}), 200
 
