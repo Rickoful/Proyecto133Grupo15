@@ -12,7 +12,7 @@ app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''          
 app.config['MYSQL_DB'] = 'proyectoprestamo'
-app.config['MYSQL_PORT'] = 3307      
+    
 
 mysql = MySQL(app) 
 # Habilitar CORS para permitir peticiones desde el frontend (dev server o producción)
